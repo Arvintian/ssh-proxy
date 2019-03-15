@@ -8,7 +8,7 @@ import os
 
 def proxy(user, host, address):
     try:
-        print("proxy:{}".format(address))
+        print("{} {}@{}".format(address, user, host))
         cmd = ["ssh", "-NL"]
         cmd.append(address)
         cmd.append("{}@{}".format(user, host))
@@ -35,24 +35,30 @@ def main():
     config = "{}/{}".format(os.environ['HOME'], "proxy.json")
     with open(config, "r") as proxy_file:
         content = json.loads(proxy_file.read())
-        user = content.get("user", "")
-        host = content.get("host", "")
-        targets = content.get("proxys", [])
+        for item in content:
+            user = item.get("user", "")
+            host = item.get("host", "")
+            for address in item.get("proxys", []):
+                targets.append({
+                    "user": user,
+                    "host": host,
+                    "proxy": address
+                })
     # kill previous process
     for target in targets:
-        kill_process(target)
-    # print(user, host, targets)
+        kill_process(target.get("proxy"))
+    # print(targets)
     # proxy
     subs = []
     for target in targets:
-        _sub = proxy(user, host, target)
+        _sub = proxy(target.get("user"), target.get("host"), target.get("proxy"))
         if _sub:
             subs.append(_sub)
 
     def exit_kill(sig, frame):
         for sub, address in subs:
             sub.kill()
-            print("proxy:{} exit {}".format(address, sub.wait()))
+            print("{} exit {}".format(address, sub.wait()))
     for sig in [signal.SIGINT, signal.SIGHUP, signal.SIGTERM]:
         signal.signal(sig, exit_kill)
     signal.pause()
